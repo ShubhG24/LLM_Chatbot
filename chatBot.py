@@ -138,7 +138,7 @@ def main():
         uploaded_jsons = st.file_uploader("Upload JSON files", type="json", accept_multiple_files=True)
 
         if st.button("Submit"):
-            with st.spinner("Muching your request..."):
+            with st.spinner("Munching your request..."):
                 combined_text = ""
 
                 # Process URLs
