@@ -3,6 +3,7 @@ import streamlit as st
 from dotenv import load_dotenv
 import nest_asyncio
 import tempfile
+import json
 
 from langchain_community.document_loaders import AsyncHtmlLoader
 from langchain.document_loaders import PyPDFLoader
@@ -43,6 +44,16 @@ def get_pdf_content(uploaded_file):
     os.remove(tmp_file_path)
     
     return docs[0].page_content
+
+# Function to retrieve and process JSON content
+def get_json_content(uploaded_file):
+    # Load the JSON content from the uploaded file
+    json_data = json.load(uploaded_file)
+    
+    # Convert JSON data to a string
+    json_text = json.dumps(json_data, indent=4)
+    
+    return json_text
 
 # Function to split the text into smaller, manageable chunks
 def get_text_chunks(text):
@@ -114,7 +125,7 @@ def handle_userinput(user_question):
 
 # Main function to run the Streamlit app
 def main():
-    st.set_page_config(page_title="Chat with Webpage or PDF", page_icon=":globe_with_meridians:")
+    st.set_page_config(page_title="Chat with Multiple Documents", page_icon=":globe_with_meridians:")
     st.write(css, unsafe_allow_html=True)
 
     if "conversation" not in st.session_state:
@@ -122,54 +133,51 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    st.header("Chat with a Webpage or PDF :globe_with_meridians:")
+    st.header("Chat with Multiple Documents :globe_with_meridians:")
 
-    user_question = st.text_input("Ask a question about the document:")
+    user_question = st.text_input("Ask a question about the documents:")
     if user_question and st.session_state.conversation:
         handle_userinput(user_question)
 
     with st.sidebar:
-        st.subheader("Your Document")
+        st.subheader("Your Documents")
         
-        # Webpage input
-        url = st.text_input("Enter the URL of the webpage:")
-        if st.button("Submit URL"):
-            with st.spinner("Munching your request..."):
-                # Fetch and process the webpage content
-                raw_text = get_webpage_content(url)
+        # Webpage inputs
+        urls = st.text_area("Enter URLs of webpages (one per line):")
+        url_list = urls.splitlines()
 
-                # Split the content into chunks
-                text_chunks = get_text_chunks(raw_text)
+        # PDF inputs
+        uploaded_pdfs = st.file_uploader("Upload PDF files", type="pdf", accept_multiple_files=True)
+
+        # JSON inputs
+        uploaded_jsons = st.file_uploader("Upload JSON files", type="json", accept_multiple_files=True)
+
+        if st.button("Submit"):
+            with st.spinner("Processing your documents..."):
+                combined_text = ""
+
+                # Process URLs
+                for url in url_list:
+                    combined_text += get_webpage_content(url) + "\n"
+
+                # Process PDFs
+                for uploaded_pdf in uploaded_pdfs:
+                    combined_text += get_pdf_content(uploaded_pdf) + "\n"
+
+                # Process JSONs
+                for uploaded_json in uploaded_jsons:
+                    combined_text += get_json_content(uploaded_json) + "\n"
+
+                # Split the combined content into chunks
+                text_chunks = get_text_chunks(combined_text)
 
                 # Create a vector store from the text chunks
                 vectorstore = get_vectorstore(text_chunks)
 
                 # Initialize the conversational retrieval chain
                 st.session_state.conversation = get_conversation_chain(vectorstore)
-                
-        # PDF input
-        uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
-        if uploaded_file is not None:
-            with st.spinner("Processing the PDF..."):
-                # Fetch and process the PDF content
-                raw_text = get_pdf_content(uploaded_file)
-
-                # Split the content into chunks
-                text_chunks = get_text_chunks(raw_text)
-
-                # Create a vector store from the text chunks
-                vectorstore = get_vectorstore(text_chunks)
-
-                # Initialize the conversational retrieval chain
-                st.session_state.conversation = get_conversation_chain(vectorstore)
         
-        # Add the reset button
-        if st.button("Reset"):
-            st.session_state.conversation = None
-            st.session_state.chat_history = []
-            st.session_state.url = None
-            st.session_state.question = ""  # Clear the question field
-            st.rerun()  # Use Streamlit's rerun method
+        
 
 if __name__ == '__main__':
     main()
