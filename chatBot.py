@@ -131,6 +131,13 @@ def main():
         urls = st.text_area("Enter URLs of webpages (one per line):")
         url_list = urls.splitlines()
 
+        # .txt file uploader for URLs
+        txt_file = st.file_uploader("Upload a .txt file containing URLs", type="txt")
+        if txt_file is not None:
+            txt_urls = txt_file.read().decode("utf-8").splitlines()
+            url_list.extend(txt_urls)  # Add URLs from the file to the list
+            urls += "\n".join(txt_urls)  # Display them in the text area
+            
         # PDF inputs
         uploaded_pdfs = st.file_uploader("Upload PDF files", type="pdf", accept_multiple_files=True)
 
